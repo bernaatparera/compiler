@@ -1,0 +1,16 @@
+function main{
+
+    //Example of functions with return statements
+
+    function int asd(){
+        if(1==2) return 0;
+    }
+
+    function int returnStandard(int a){
+    a = asd();
+    return a;
+    }
+
+    int a = returnStandard(0);
+    print(a);
+}

@@ -1,0 +1,29 @@
+function main{
+
+    //Program that display different functionalities of the language
+
+    //It Display a triangle made with 0's
+    //The triangle will be proportional in size depending
+    //on the number introduced via keyboard
+
+    int aux;
+    input(aux);
+    const int size=aux;
+
+    function line(int s){
+        while(s>1){
+            print(0);
+            s = s-1;
+        }
+        println(0);
+    }
+
+    for(int i = 0,i<size,i=i+1){
+        line(i);
+    }
+
+    for(int i = size, i>0 ,i=i-1){
+        line(i);
+    }
+
+}

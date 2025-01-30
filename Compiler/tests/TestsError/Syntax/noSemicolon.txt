@@ -1,0 +1,5 @@
+function main{
+
+    //Syntax error due to missing semicolon
+    print(1)
+}

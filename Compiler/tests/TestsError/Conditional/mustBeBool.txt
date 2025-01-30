@@ -1,0 +1,13 @@
+function main{
+
+    int a;
+    input(a);
+
+    //Condition cannot be an integer variable
+    if(a){
+        print(1);
+    }else{
+        print(2);
+    }
+
+}

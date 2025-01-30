@@ -1,0 +1,32 @@
+function main{
+
+    //Test that displays the capability of tuples
+
+    tuple t0{
+        int a = 1111;
+    }
+
+    tuple t1{
+        int a = 321;
+        tuple t= t0;
+    }
+
+    tuple t2{
+        int a = 123;
+        bool b = FALSE OR TRUE;
+        tuple t = t1;
+    }
+
+    bool b = t2.b;
+    println(b);
+
+    int a = t2.a;
+    println(a);
+
+    int x = t2.t.a;
+    println(x);
+
+    x = t2.t.t.a;
+    print(x);
+
+}

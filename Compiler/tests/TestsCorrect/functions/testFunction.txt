@@ -1,0 +1,26 @@
+function main{
+
+    //Example of function using other functions
+
+    int b=3;
+    int a;
+
+    //function to add two numbers
+    function int add(int a,int b){
+       int c=a+b;
+       return c;
+    }
+
+    //function to multiply a number
+    //by two addining it twice
+
+    function int mult2(int c){
+        int b=c;
+        int x = add(c,b);
+        return x;
+    }
+
+    b=mult2(b);
+    println(b);
+
+}

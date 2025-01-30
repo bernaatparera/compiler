@@ -1,0 +1,5 @@
+function main{
+
+    //error due to two signs in a row
+    int number1=-1+-1;
+}

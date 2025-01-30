@@ -1,0 +1,10 @@
+function main{
+
+tuple t0{
+        int a = 1111;
+    }
+
+//Cannot use input with tuples
+input(t0);
+
+}

@@ -1,0 +1,7 @@
+function main{
+
+    //Use of undeclared functions
+    fun1();
+    fun2();
+
+}

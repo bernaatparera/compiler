@@ -1,0 +1,25 @@
+function main{
+
+    //Test that displays the evaluation
+    //of diferent conditional cases
+    bool a = 1<2;
+    println(a);
+
+    a = 1==2;
+    println(a);
+
+    a = 1!=2;
+    println(a);
+
+    a = 1<=1;
+    println(a);
+
+    a = 1>=1;
+    println(a);
+
+    a = 1>=2;
+    println(a);
+
+    a = 1<=2;
+    println(a);
+}

@@ -1,0 +1,13 @@
+function main{
+
+    //Input test
+
+    int a;
+    input(a);
+
+    if(a>0){
+        print(1);
+    }else{
+        print(2);
+    }
+}

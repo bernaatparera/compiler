@@ -1,0 +1,34 @@
+function main{
+
+//A more complex display of functions using
+//other procedures that print numbers
+
+int a = 1;
+int b = 2;
+int c= 3;
+int d=4;
+
+//this will print 12
+function fun1(int c, int d){
+    print(c);
+    print(d);
+}
+
+//then this will print 3
+function fun2(int a, int b, int c){
+    print(c);
+}
+
+//will call the other function printing 123 adn then print 4
+function int fun3(int a,int b, int c, int d){
+    fun1(a,b);
+    fun2(a,b,c);
+    println(d);
+    return 1;
+}
+
+a = fun3(a,b,c,d);
+
+//print of the return statement (1)
+print(a);
+}

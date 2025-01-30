@@ -1,0 +1,3 @@
+// Syntax error due to no function main
+
+print(1);

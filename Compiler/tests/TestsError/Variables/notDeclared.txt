@@ -1,0 +1,5 @@
+function main{
+
+    //x is not a declared variable
+    print(x);
+}

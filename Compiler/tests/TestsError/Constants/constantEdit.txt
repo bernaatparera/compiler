@@ -1,0 +1,8 @@
+function main{
+    const int a = 1;
+    const int b;
+
+    //Assignations in constants
+    a=2;
+    a=3;
+}

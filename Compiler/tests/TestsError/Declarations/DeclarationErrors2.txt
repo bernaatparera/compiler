@@ -1,0 +1,4 @@
+function main{
+    //Wrong way to declare a tuple
+    tuple t = 10;
+}

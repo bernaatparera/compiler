@@ -1,0 +1,10 @@
+function main{
+
+tuple t0{
+        int a = 1111;
+    }
+
+//Tuples are constants, cannot assign a new value to "a"
+input(t0.a);
+
+}

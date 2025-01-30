@@ -1,0 +1,12 @@
+function main{
+
+    //Test that displays different usages of println() and print()
+    int a = 2;
+    bool b =TRUE;
+    println(5);
+    println(a<1);
+    println(a);
+    println(b);
+    println(b OR FALSE);
+    print(a*3);
+}

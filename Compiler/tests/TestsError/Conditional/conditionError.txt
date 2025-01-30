@@ -1,0 +1,10 @@
+function main{
+
+    //Incorrec condition used in IF statement
+    if( FALSE < FALSE){
+        print(1);
+    }else{
+        print(2);
+    }
+
+}

@@ -1,0 +1,5 @@
+function main{
+
+    //Cannot do an assignation to an undeclared variable
+    x=1;
+}

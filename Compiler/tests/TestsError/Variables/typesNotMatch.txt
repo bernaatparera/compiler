@@ -1,0 +1,8 @@
+function main{
+
+    int a = 0;
+
+    //Wrong use of an integer variable
+    //in a boolean expression
+    bool b = TRUE OR a;
+}

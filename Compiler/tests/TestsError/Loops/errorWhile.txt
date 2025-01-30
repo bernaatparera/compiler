@@ -1,0 +1,9 @@
+function main{
+
+    bool b = FALSE;
+
+    //Wrong condition in while statement
+    while(b < 6){
+        print(1);
+    }
+}

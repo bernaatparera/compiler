@@ -1,0 +1,17 @@
+function main{
+
+    //Function witohut any retrun statement
+    function int fun1(){
+        print(1);
+    }
+
+    //Procedure with a return statement
+    function fun2(){
+        return 1;
+    }
+
+    //Declaring function with same name, no polymorphism
+    function int fun1(int a){
+    }
+
+}

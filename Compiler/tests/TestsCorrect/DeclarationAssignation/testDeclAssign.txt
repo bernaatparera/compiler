@@ -1,0 +1,24 @@
+function main{
+
+    //Examples of declarations + assignations
+    int number1 = 2;
+    bool boolean1 = FALSE;
+
+    println(number1);
+    println(boolean1);
+
+    //Examples of declarations + assignations
+    //with other variables
+    int number2 = number1;
+    bool boolean2 = boolean1;
+
+    println(number2);
+    println(boolean2);
+
+    //Examples of assignations
+    boolean2 = TRUE;
+    number2 = 3;
+
+    println(number2);
+    println(boolean2);
+}

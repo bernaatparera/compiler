@@ -1,0 +1,10 @@
+function main{
+
+    //Recursion is not possible
+    function fun1(){
+        fun1();
+    }
+
+    fun1();
+
+}

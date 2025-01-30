@@ -1,0 +1,7 @@
+function main{
+
+    int x;
+
+    //Types do not match
+    x = TRUE;
+}

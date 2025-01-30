@@ -1,0 +1,7 @@
+function main{
+
+    //Condition mandatory in while statement
+    while(){
+        print(1);
+    }
+}

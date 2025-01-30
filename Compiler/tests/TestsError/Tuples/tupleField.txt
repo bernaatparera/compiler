@@ -1,0 +1,14 @@
+function main{
+    tuple t1{
+        int a = 321;
+    }
+
+    tuple t2{
+        tuple t = t1;
+    }
+
+    //Tuple field "X" does not exist
+    int b = t2.X.a;
+    println(b);
+
+}

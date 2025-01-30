@@ -1,0 +1,9 @@
+function main{
+
+    //Type of "a" does not match boolean type of TRUE
+    int a = TRUE;
+    bool b = FALSE;
+    //Variable declard for second time
+    bool b = TRUE;
+
+}

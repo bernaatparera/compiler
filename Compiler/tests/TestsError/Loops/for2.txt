@@ -1,0 +1,8 @@
+function main{
+
+    //Syntax error
+    for( 1<10,){
+        println(1);
+    }
+
+}

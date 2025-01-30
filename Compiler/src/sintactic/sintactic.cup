@@ -1,0 +1,1200 @@
+// Author: Bernat Parera
+package sintactic;
+
+
+import java_cup.runtime.ComplexSymbolFactory.ComplexSymbol;
+import java_cup.runtime.ComplexSymbolFactory.Location;
+
+import java_cup.runtime.*;
+
+import sintactic.Symbols.*;
+
+import assemblyCode.*;
+import threeAddressCode.*;
+import java.io.PrintStream;
+import java.util.ArrayList;
+
+import java.util.Stack;
+import java.util.Objects;
+class Parser;
+
+parser code {:
+//Symbol table to check semantics of the code
+private SymbolTable st = new SymbolTable();
+
+private int errorsFound=0;
+private ArrayList<String> errors = new ArrayList<String>();
+
+//variable to know in which state we are, we use it in ASSIGNATION to know if we are declaring and assigning or just assigning
+public String currentState= "";
+
+//upperID to use in function and procedure declaration.
+public String upperID = null;
+
+//STACK to transfer information between productions
+public Stack <String> ids = new Stack<String>();
+public Stack <String> funcIDS = new Stack<String>();
+public Stack <Integer> length = new Stack<Integer>();
+
+
+CodeGenerator c = new CodeGenerator(st);
+public CodeGenerator get3AC(){
+    return c;
+}
+
+public void print3AddressCode(PrintStream out){
+    c.print3AddressCode(out);
+}
+public void assemblyCode(PrintStream out)throws Exception{
+    AssemblyGenerator.generateAssembly(out,c.getCode(),c.getVt(),c.getProcedures(),c.getPl());
+}
+
+
+public void print3AddressVars(PrintStream out){
+    c.print3AddressVars(out);
+}
+
+
+
+    //errorSemantic, if it's true we will stop generating code and we will enter panic mode
+    private boolean errorSemantic = false;
+
+
+    /**********************************************************************
+     * Override methods to manage errors                                  *
+     **********************************************************************/
+
+    @Override
+    public void unrecovered_syntax_error(Symbol cur_token) throws Exception {
+        report_error("Unrecovered syntax error", cur_token);
+        done_parsing();
+    }
+
+    @Override
+    public void syntax_error(Symbol cur_token) {
+        report_error("Syntax error", cur_token);
+    }
+
+    @Override
+     public void report_error(String message, Object info){
+            this.errorsFound++;
+            StringBuilder msg = new StringBuilder("ERROR");
+            if(info instanceof Symbol){
+                ComplexSymbol token = (ComplexSymbol) this.cur_token;
+                Location l = token.getLeft();
+
+                if(l != null){
+                    msg.append(" row: " + l.getLine() + ", col: " + l.getColumn());
+                }
+            }
+            msg.append("-> " + message);
+            errors.add(msg.toString());
+            System.err.println(msg);
+        }
+
+    @Override
+    public void report_fatal_error(String message, Object info) throws Exception {
+        report_error("Unrecoverable error: ("+message+")", info);
+        done_parsing();
+    }
+
+    public void printErrors(PrintStream out){
+            String fmt = "%s";
+            for (int i = 0; i <errors.size();i++){
+               out.println(String.format(fmt,errors.get(i)));
+            }
+    }
+
+    public int getFoundErrors(){
+        return this.errorsFound;
+    }
+
+:}
+
+
+terminal String function, print, println, returnt ,ift, elset, fort, whilet, constt, main, truet, falset, integer, bool, tuple,
+input, equal, sumop, minop, mulop, divop, equalrel, notequalrel, greaterrel, lessrel, greatereqrel, lesseqrel,
+and, or, not, xor, nand, nor, xnor, semicolon, comma, openp, closep ,openb, closeb, id,dot;
+terminal int number;
+non terminal PROGRAM,FUNPROCDECLARATION, PRINT, INPUT, PARAMP, PARAMETERP ,PARAMS,DECL;
+non terminal Boolean PRINTP;
+non terminal SymbolTCP TCP;
+non terminal String RETURN, LINE, LINEP, BLOCK, BODY,IF, ELSE, FOR, WHILE,PARAMETER,CODE,CONDITIONAL;
+non terminal String ID,IDF;
+non terminal Integer DECLARATION,ASSIGN;
+non terminal SymbolTYPE TYPE,TYP;
+non terminal SymbolDECLARATIONP DECLARATIONP;
+non terminal SymbolASSIGNATION ASSIGNATION;
+non terminal SymbolASSIGNATIONP ASSIGNATIONP;
+non terminal SymbolE E;
+non terminal SymbolFUNPROC FUNPROC;
+non terminal SymbolPARAMETERS PARAMETERS;
+non terminal SymbolTUPLECALL TUPLECALL;
+non terminal SymbolTUPLE TUPLE;
+non terminal SymbolTUPLEP TUPLEP;
+non terminal SymbolPARAM PARAM;
+non terminal SymbolTUPLEPP TUPLEPP;
+non terminal SymbolFUNCALL FUNCALL;
+non terminal SymbolIFP IFP;
+non terminal SymbolCONDITION CONDITION;
+non terminal SymbolCONDITIONFOR CONDITIONFOR;
+non terminal SymbolFORDEC FORDEC;
+
+
+
+//MARKERS
+non terminal M0,M2,M3;
+non terminal Integer M1,M4,M5;
+precedence right equal;
+precedence left and, or, not, xor, nand, nor, xnor;
+precedence left  equalrel, notequalrel, greaterrel, lessrel, greatereqrel, lesseqrel;
+precedence left  sumop, minop;
+precedence left mulop, divop;
+precedence left elset;
+start with PROGRAM;
+
+PROGRAM ::=    function main openb M0 BLOCK:b closeb    {:
+                                                //if block is true we have a return clause in the main so we throw an error
+                                                if(!b.equals("")){
+                                                    var serr = new SymbolError();
+                                                    report_error("Return out of function declaration",serr);
+                                                }
+:}
+;
+
+//Marker to enter the block in the symbol table
+M0::= {:st.enterBlock();:}
+;
+
+BLOCK ::=   LINE:l LINEP :lp                    {: st.exitBlock();
+                                                String s;
+                                                        if(l.equals("")&&!lp.equals("")){
+                                                            RESULT = lp;
+                                                        }else
+                                                        if(!l.equals("")&&lp.equals("")){
+                                                             RESULT = l;
+                                                         }else
+                                                        if(l.equals(lp)){
+                                                            RESULT = l;
+                                                            //if we get here line and linep are different but both are different of "" so we have in the same block 2 return statement with different types
+                                                        }else{
+                                                        var serr = new SymbolError();
+                                                        report_fatal_error("Two return statements with different types",serr);
+                                                        }
+                                                    :}
+                                                    //empty block doesn't have return
+                |                                   {:
+                                                    RESULT = "";
+                                                    st.exitBlock();
+                                                    :}
+      ;
+//result is the or between line and linep because if line is or has been return in that block then we have to check
+//if we are in a function declaration, and if we are not in a function declaration we have an error (return outside a function)
+LINEP ::=   LINE:l LINEP:lp                      {:
+        String s;
+        if(l.equals("")&&!lp.equals("")){
+            RESULT = lp;
+        }else
+        if(!l.equals("")&&lp.equals("")){
+             RESULT = l;
+         }else
+        if(l.equals(lp)){
+            RESULT = l;
+            //if we get here line and linep are different but both are different of "" so we have in the same block 2 return statement with different types
+        }else{
+            var serr = new SymbolError();
+            report_error("Two return statements with different types",serr);
+        }
+
+:}
+                |                                   {:RESULT = "";:}
+;
+
+LINE ::= DECLARATION semicolon                {:RESULT =""; :}
+    | ASSIGNATION semicolon                   {:RESULT ="";:}
+    |PRINT semicolon                          {:RESULT ="";:}
+    |INPUT semicolon                          {:RESULT =""; :}
+    |FUNCALL:f semicolon                        {:
+                                                    RESULT ="";
+                                                    c.call(f.getID());
+                                                :}
+    |RETURN:r semicolon                        {:RESULT =r; :}
+    |CONDITIONAL:c                              {:RESULT =c; :}
+    |FUNPROCDECLARATION                       {:RESULT =""; :}
+    |TUPLE                                     {:RESULT =""; :}
+;
+
+//marker M2 put the state in ASSIGNATION to know if we are declaring and assigning or just assigning
+M2 ::= {:currentState = "DECLARATION";:}
+;
+
+//we put the state in "" to not have problems in next declarations or assignations
+M3 ::= {:currentState = "";:}
+;
+
+
+ID ::= id:id {:ids.push(id);
+            RESULT = id;:}
+;
+
+DECLARATION ::= constt TYPE:type M2 DECLARATIONP:declp M3
+                    {:
+                        var serr = new SymbolError();
+                        if(declp.getType() == null){
+                            report_error("Declaring constant without value",serr);
+                            errorSemantic = true;
+                        }else
+                        if(declp.getType().equals("")){
+                            report_error("Declaring constant using tuple call",serr);
+                            errorSemantic = true;
+                        }else{
+                            Description dType = st.consult(declp.getType());
+                            String typ  = declp.getType();
+                            String id = declp.getID();
+                            int value =  declp.getValue();
+                            if(!type.getType().equals(typ)){
+                                report_fatal_error("Types do not match",serr);
+                                errorSemantic = true;
+                            }
+                            if(dType.getMin() > value || dType.getMax() < value){
+                                report_fatal_error("Value of "+id+" out of range",serr);
+                                errorSemantic = true;
+                            }
+                            st.put(id, new Description(id, st.getLevel(),Description.dConstant , value,typ));
+                            int val = c.declare(id,typ,false);
+                            c.assignation(declp.getR(),c.declare(id,typ,false));
+                            RESULT = st.consult(declp.getID()).gettd();
+                        }
+                    :}
+       | TYPE:type M2 DECLARATIONP:declp M3
+                    {:
+                             var serr = new SymbolError();
+                             //only declaration (no type check)
+                             if(declp.getType() == null && type.getType().equals(Description.TypeTuple)){
+                                if(!type.getType().equals(Description.TypeTuple)){
+                                    st.put(declp.getID(), new Description(declp.getID(),Description.dVariable,type.getType()));
+                                    int val = c.declare(declp.getID(),type.getType(),false);
+                                    c.assignationVal(0,val);
+                                    RESULT = -1;
+                                }
+                             //if type is not null it is a declaration + assignation
+                             }else{
+                                 Description dType = st.consult(declp.getType());
+                                 String typ = declp.getType();
+                                 String id = declp.getID();
+                                 //if declp.getType is null it means that it is a variable without assignation so
+                                 //we don't have to check if the types match
+                                 if(typ != null && !type.getType().equals(typ)){
+                                     report_fatal_error("Types do not match",serr);
+                                     errorSemantic = true;
+                                 }else{
+                                    st.put(id, new Description(id,Description.dVariable,type.getType()));
+                                    int val = c.declare(id,typ,false);
+                                    //if it is a function we declare a call + assignation
+                                    if(declp.function() != null)
+                                        c.call(st.consult(id).getIndexVT(),declp.function());
+                                    else
+                                    //if typ is null we have a declaration without assigation so we assigante the value 0
+                                    if(typ == null)
+                                        c.assignationVal(0,val);
+                                    else
+                                        c.assignation(declp.getR(),val);
+                                    RESULT = st.consult(declp.getID()).gettd();
+                                 }
+                                 }
+
+
+                        :}
+;
+
+DECLARATIONP ::= id:v                                 {:RESULT = new SymbolDECLARATIONP(v);:}
+    | ASSIGNATION :v                                   {: RESULT = new SymbolDECLARATIONP(v.getID(),v.getType(),v.getValue(),v.getR(),v.function());:}
+;
+
+ASSIGNATION ::= ID :v equal ASSIGNATIONP:asp             {:
+        var serr = new SymbolError();
+        ids.pop();
+        if(!currentState.equals("DECLARATION")){
+        String TYPE = st.getType(v);
+        //if TYPE is null means that the id is not declared
+        if(TYPE == null){
+            report_error("Variable "+v+" not declared",serr);
+            errorSemantic = true;
+        //if it is declared but it is not the same type as asp it means we have a type error
+        }
+        if(asp.getType().equals("")){
+            //it's checked in executing time
+
+        }else
+        if(!TYPE.equals(asp.getType())){
+            report_fatal_error("Type doesn't match for id: "+v,serr);
+            errorSemantic = true;
+        }else
+        if(st.consult(v).gettd() == Description.dConstant){
+            report_error("Trying to edit a constant: "+v,serr);
+            errorSemantic = true;
+        }else
+        if(asp.isFunction()){
+            c.call(st.consult(v).getIndexVT(),asp.getID());
+        }else{
+        c.assignation(asp.getR(),st.consult(v).getIndexVT());
+        RESULT = new SymbolASSIGNATION(v,asp.getType(),asp.getValue(),asp.getR(),asp.getID());
+
+        }
+
+        }
+        //if the currentState is not ASSIGNATION it means it is declaration and we need to send the information
+        else
+            RESULT = new SymbolASSIGNATION(v,asp.getType(),asp.getValue(),asp.getR(),asp.getID());
+:}
+;
+
+ASSIGNATIONP ::=  E:e {:RESULT = new SymbolASSIGNATIONP(null,e.getType(),e.getValue(),e.getR());:}
+    | TUPLECALL:tup     {:RESULT = new SymbolASSIGNATIONP(null,tup.getType(),0,tup.getR());:}
+    | FUNCALL:f   {:
+                    var serr = new SymbolError();
+                    Description d = st.consult(f.getID());
+                    if(d == null){
+                        report_error("ID not declared (not in st)",serr);
+                    }
+                    if(d.gettd() != Description.dFunction){
+                        report_fatal_error("ID is not a function",serr);
+                    }
+                    RESULT = new SymbolASSIGNATIONP(d.getType(),f.getID());
+    :}
+;
+
+//This production for any type without counting tuples
+TYPE ::= integer    {: RESULT = new SymbolTYPE(SymbolTYPE.TypeInt); :}
+    | bool      {:RESULT = new SymbolTYPE(SymbolTYPE.TypeBool);  :}
+;
+
+//INCLUDING tuple
+TYP ::= integer    {: RESULT = new SymbolTYPE(SymbolTYPE.TypeInt); :}
+    | bool      {:RESULT = new SymbolTYPE(SymbolTYPE.TypeBool);  :}
+    |tuple       {:RESULT = new SymbolTYPE(SymbolTYPE.TypeTuple);  :}
+;
+
+FUNPROCDECLARATION ::= FUNPROC:f BODY:b {:
+                upperID = null;
+                var serr = new SymbolError();
+                if(f.gettd() == Description.dFunction){
+                    if(b.isEmpty()){
+                        report_error("Function without return statement",serr);
+                        errorSemantic = true;
+                    }
+                    else {
+                    Description d = st.consult(f.getID());
+                    //if b return is different
+                    if(d == null || !d.getType().equals(b)){
+                        report_error("Return statement or statements type don't match ",serr);
+                        errorSemantic = true;
+                    }
+                    }
+                    }else{
+                        if(!b.isEmpty()){
+                            report_error("Return in procedure",serr);
+                            errorSemantic = true;
+                        }
+                    }
+
+
+    :}
+;
+
+FUNPROC ::= function TYPE:TYPE id:v {:
+                var serr = new SymbolError();
+                if(st.getLevel()!= 1){
+                     report_fatal_error("Trying to declare a function out of base level",serr);
+                     errorSemantic = true;
+                }
+                else
+                if(st.existsFunction(v)){
+                    report_fatal_error("Function "+v+" already exists",serr);
+                    errorSemantic = true;
+                }else{
+                    upperID = v;
+                    st.put(v,new Description(v,Description.dFunction,TYPE.getType()));
+                    RESULT = new SymbolFUNPROC(Description.dFunction,v);
+                }
+            :}
+    | function id:v{:
+                var serr = new SymbolError();
+                if(st.getLevel()!= 1){
+                     report_fatal_error("Trying to declare a function out of base level",serr);
+                     errorSemantic = true;
+                }
+                else
+                if(st.existsFunction(v)){
+                     report_fatal_error("Procedure "+v+" already exists",serr);
+                    errorSemantic = true;
+                }else{
+                    upperID = v;
+                    st.put(v,new Description(v,Description.dProcedure,""));
+                    RESULT = new SymbolFUNPROC(Description.dProcedure,v);
+                }
+
+    :}
+;
+
+M1  ::=
+            {:
+            int goTo = c.pmb(upperID);
+            RESULT = goTo;
+            :}
+;
+
+BODY ::=  openp PARAMETERS M1:goTo closep openb BLOCK:b closeb   {:
+            if(!errorSemantic) c.rtn();
+            c.label(goTo);
+             RESULT = b;
+             :}
+;
+
+PARAMETERS ::= PARAMETER comma PARAMETERP  {:
+            st.enterBlock();
+            st.setParams(upperID);:}
+    | PARAMETER:p{:
+            st.enterBlock();
+            st.put(p,st.getParam(upperID,1));:}
+    | {:
+            st.enterBlock();
+:}
+;
+
+PARAMETER ::= TYPE:TYPE id:v   {:
+            int i = c.functionParameter(TYPE.getType());
+            st.addParameter(upperID,v,new Description(v,Description.dArg,TYPE.getType(),i));
+            RESULT = v;
+
+:}
+;
+
+PARAMETERP ::= PARAMETER comma PARAMETERP  {:  :}
+    | PARAMETER{: :}
+;
+
+IDF ::= id:id{:
+                var serr = new SymbolError();
+                Description d = st.consult(id);
+                if(d == null){
+                    report_fatal_error("Function doesn't exist",serr);
+                }else
+                if(d.gettd() != Description.dFunction && d.gettd() != Description.dProcedure){
+                    report_fatal_error(id+ " is not a function or procedure ",serr);
+                }else{
+                    funcIDS.push(id);
+                    length.push(st.getFuncSize(id));
+                    RESULT = id;
+                }
+                :}
+;
+
+FUNCALL ::=     IDF:id openp PARAMS closep
+{:                           var serr = new SymbolError();
+                             if(id.equals(upperID)){
+                                report_error("Recursion is not allowed",serr);
+                             }
+                             //empty the stacks (IDF)
+                             funcIDS.pop();
+                             int n = length.pop();
+                             if(n !=0){
+                                 report_error("More parameters needed",serr);
+                             }
+                            RESULT = new SymbolFUNCALL(id);
+                            :}
+;
+
+PARAMS ::= PARAM:p PARAMP {:
+                                                                       var serr = new SymbolError();
+                                                                       int len = length.pop();
+                                                                       if(len <= 0) {
+                                                                           report_fatal_error("Parameters calling function or procedure",serr);
+                                                                           errorSemantic = true;
+                                                                       }else{
+                                                                           Description d = st.getParam(funcIDS.peek(),len);
+                                                                           if(!d.getType().equals(p.getType())){
+                                                                               report_error("Type of parameter",serr);
+                                                                           }
+                                                                           len--;
+                                                                           length.push(len);
+                                                                               }
+                                                                       :}
+|   {:
+        if(length.peek()!=0){
+        var serr = new SymbolError();
+        report_error("the function has more parameters",serr);
+        }
+            :}
+;
+
+PARAM ::=   E:e                           {:RESULT = new SymbolPARAM(e.getType());
+                                            c.param(e.getR());
+                                            :}
+
+;
+
+PARAMP ::= comma PARAM:p PARAMP      {:
+                                             var serr = new SymbolError();
+                                             int len = length.pop();
+                                             if(len <= 0) {
+                                                 report_fatal_error("Parameters calling function or procedure",serr);
+                                                 errorSemantic = true;
+                                             }else{
+                                                 Description d = st.getParam(funcIDS.peek(),len);
+                                                 if(!d.getType().equals(p.getType())){
+                                                 }
+                                                 len--;
+                                                 length.push(len);
+                                                     }:}
+    |                              {::}
+;
+
+PRINT ::=       PRINTP:b openp E:e closep      {:
+                                if(e.getType().equals(Description.TypeTuple)){
+                                    var serr = new SymbolError();
+                                    report_fatal_error("Parameters calling function or procedure",serr);
+                                    errorSemantic = true;
+                                }
+                                if(b) c.print(e.getR());
+                                else  c.println(e.getR());
+:}
+;
+
+PRINTP ::=       print        {:RESULT = true;:}
+    |            println      {:RESULT = false;:}
+;
+
+TUPLE ::=tuple ID:id openb TUPLEP:tp  {:
+                    Description d = st.consult(id);
+                    d.setValue(tp.getValue());
+                    RESULT = new SymbolTUPLE(Description.TypeTuple);
+    :}
+
+;
+
+TUPLEP ::= TYP:TYPE id:id equal E:e semicolon TUPLEPP:tpp
+{:
+            //if TYPE is not int it's an error
+            if(!TYPE.getType().equals(e.getType())){
+                var serr = new SymbolError();
+                report_fatal_error("Parameters calling function or procedure",serr);
+                errorSemantic = true;
+            }
+            //if we have to insert to the te it means that this is a tuple into a tuple so we have to add the field to the last tuple in the te
+            if(!errorSemantic && TYPE.getType().equals(Description.TypeTuple)){
+                st.addField(ids.peek(),id,new Description(id,Description.dArg,TYPE.getType(),e.getID(),e.getR()));
+                RESULT = new SymbolTUPLEP(st.consult(e.getID()).getValue() + tpp.getValue());
+            }else{
+                if(!errorSemantic){
+                    st.addField(ids.peek(),id,new Description(id,Description.dArg,TYPE.getType(),e.getR()));
+                    RESULT = new SymbolTUPLEP(SymbolTable.getSizeType(e.getType()) + tpp.getValue());
+                }
+            }
+
+
+
+    :}
+;
+
+TUPLEPP ::= TUPLEP:tp {:
+            RESULT = new SymbolTUPLEPP(tp.getValue());:}
+    |closeb   {:
+            Description d = st.consult(ids.peek());
+            if(d != null){
+                var serr = new SymbolError();
+                report_fatal_error("Symbol tuple already declared or exists",serr);
+                errorSemantic = true;
+            }else{
+            st.put(ids.peek(), new Description(ids.peek(), Description.dConstant, Description.TypeTuple));
+            RESULT = new SymbolTUPLEPP(0);
+            }
+        :}
+;
+
+TUPLECALL ::= id:v1 dot id:v2 TCP:tcp    {:
+                            SymbolError serr = new SymbolError();
+                            Stack<String> calls = tcp.getCalls();
+                            if(!errorSemantic){
+                                Description  pre = st.checkField(v1,v2);
+                                if(Objects.isNull(pre)){
+                                    report_fatal_error("calling tuple error",serr);
+                                    done_parsing();
+                                }else{
+                                    Description aux = null;
+                                    while(!calls.isEmpty()){
+                                        if(!pre.getType().equals(Description.TypeTuple)){
+                                            errorSemantic = true;
+                                            calls.clear();
+                                            report_fatal_error("incorrect use of tuple call",serr);
+                                        }
+                                        else{
+                                            aux = st.consult(pre.getTupleRef());
+                                            pre = st.checkField(aux.getID(),calls.pop());
+                                        }
+                                    }
+                                }
+                                if(Objects.isNull(pre)){
+                                   report_fatal_error("calling tuple error",serr);
+                                   done_parsing();
+                                }
+                                else{
+                                    RESULT = new SymbolTUPLECALL(pre.getType(),pre.getIndexVT());
+
+                                }
+                            }
+:}
+;
+
+TCP ::= dot id:id TCP:tcp                           {:RESULT = new SymbolTCP(tcp.getCalls(),id);:}
+|                                                   {:RESULT = new SymbolTCP();:}
+;
+
+INPUT ::= input openp id:id closep                {:
+                                                var serr = new SymbolError();
+                                                if(st.consult(id) == null){
+                                                    report_fatal_error(id+" id not declared ",serr);
+                                                    errorSemantic = true;
+                                                }else
+                                                if(st.consult(id).gettd() == Description.dFunction){
+                                                    report_error("Semantic id is function ",serr);
+                                                }
+                                                else
+                                                if(st.consult(id).gettd() == Description.dConstant){
+                                                    report_error("input can't be constant",serr);
+                                                 }else
+                                                 if(!st.consult(id).getType().equals(Description.TypeInt))
+                                                    report_error("Input must be integer ",serr);
+                                                 else
+                                                    c.input(st.consult(id).getIndexVT());
+:}
+;
+
+RETURN ::= returnt  E:e                      {:
+                                        RESULT = e.getType();
+                                        c.rtn(e.getR());
+                                        :}
+;
+
+E ::= E:v1 sumop E:v2
+                    {:
+                        var serr = new SymbolError();
+                        if(!v1.getType().equals(v2.getType())){
+                             report_fatal_error("Types do not match",serr);
+                        }else
+                        if(!v1.getType().equals(Description.TypeInt)){
+                            report_fatal_error("Sum must use integer",serr);
+                        }else
+                        if(v2.getNegative()){
+                            report_fatal_error("Two signs in a row",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.arithmetic("add",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeInt,v1.getNegative());
+                     RESULT.setR(destination);
+                    }
+                    :}
+        |E:v1 minop E:v2
+            {:
+                        var serr = new SymbolError();
+                        if(!v1.getType().equals(v2.getType())){
+                             report_fatal_error("Types do not match",serr);
+                        }else
+                        if(!v1.getType().equals(Description.TypeInt)){
+                            report_fatal_error("Rest must use integer",serr);
+                        }else
+                        if(v2.getNegative()){
+                            report_fatal_error("Two signs in a row",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.arithmetic("sub",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeInt,v1.getNegative());
+                     RESULT.setR(destination);
+                    }
+
+                    :}
+        |E:v1 mulop E:v2
+          {:
+                        var serr = new SymbolError();
+                        if(!v1.getType().equals(v2.getType())){
+                             report_fatal_error("Types do not match",serr);
+                        }else
+                        if(!v1.getType().equals(Description.TypeInt)){
+                            report_fatal_error("Multiplication must use integer",serr);
+                        }else
+                        if(v2.getNegative()){
+                            report_fatal_error("Two signs in a row",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.arithmetic("prod",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeInt,v1.getNegative());
+                     RESULT.setR(destination);
+                    }
+                    :}
+        |E:v1 divop E:v2
+           {:
+                        var serr = new SymbolError();
+                        if(!v1.getType().equals(v2.getType())){
+                             report_fatal_error("Types do not match",serr);
+                        }else
+                        if(!v1.getType().equals(Description.TypeInt)){
+                            report_fatal_error("Division must use integer",serr);
+                        }else
+                        if(v2.getNegative()){
+                            report_fatal_error("Two signs in a row",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.arithmetic("div",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeInt,v1.getNegative());
+                     RESULT.setR(destination);
+                    }
+
+                    :}
+
+
+        |E:v1 and E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                         report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeBool)){
+                        report_fatal_error("AND must use boolean",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.logic("and",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 or E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                         report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeBool)){
+                         report_fatal_error("OR must use boolean",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.logic("or",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 xor E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                         report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeBool)){
+                        report_fatal_error("XOR must use boolean",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.logic("xor",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 nand E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                         report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeBool)){
+                        report_fatal_error("NAND must use boolean",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.logic("nand",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 nor E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                        report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeBool)){
+                        report_fatal_error("NOR must use boolean",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.logic("nor",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 xnor E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                        report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeBool)){
+                        report_fatal_error("XNOR must use boolean",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.logic("xnor",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 equalrel E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType()) || v1.getType().equals(Description.TypeTuple)){
+                          report_fatal_error("Types do not match",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.relational("EQ",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 notequalrel E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())|| v1.getType().equals(Description.TypeTuple)){
+                         report_fatal_error("Types do not match",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.relational("NE",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 greaterrel E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                         report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeInt)){
+                        report_fatal_error("> must use integer",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.relational("GT",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 lessrel E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                         report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeInt)){
+                        report_fatal_error("< must use integer",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.relational("LT",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 greatereqrel E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                         report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeInt)){
+                        report_fatal_error(">= must use integer",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.relational("GE",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,false);
+                     RESULT.setR(destination);
+                    }
+        :}
+        |E:v1 lesseqrel E:v2
+        {:
+                     var serr = new SymbolError();
+                     if(!v1.getType().equals(v2.getType())){
+                        report_fatal_error("Types do not match",serr);
+                    }else
+                    if(!v1.getType().equals(Description.TypeInt)){
+                        report_fatal_error("<= must use integer",serr);
+                    }else{
+                     int destination = c.declare(c.nextVar(),Description.TypeInt,true);
+                     c.relational("LE",v1.getR(),v2.getR(),destination);
+                     RESULT = new SymbolE(Description.TypeBool,v1.getNegative());
+                     RESULT.setR(destination);
+                    }
+
+        :}
+        |id:id                     {:
+                                                var serr = new SymbolError();
+                                                if(st.consult(id) == null){
+                                                    report_fatal_error(id+" id not declared ",serr);
+                                                    errorSemantic = true;
+                                                }else
+                                                if(st.consult(id).gettd() == Description.dFunction){
+                                                    report_fatal_error("id is function ",serr);
+                                                }else
+                                                if(st.consult(id).getType().equals(Description.TypeTuple)){
+                                                    RESULT = new SymbolE(id,Description.TypeTuple);
+
+                                                }
+                                                else
+                                                if(st.consult(id).gettd() == Description.dConstant){
+                                                    int index = st.consult(id).getIndexVT();
+                                                    String var = c.nextVar();
+                                                    int destination = c.declare(var,Description.TypeInt,true);
+                                                    c.assignation(index,destination);
+                                                    RESULT = new SymbolE(st.consult(id).getType(),false,st.consult(id).getValue(),destination);
+                                                 }else{
+                                                     int index = st.consult(id).getIndexVT();
+                                                     int destination = c.declare(c.nextVar(),st.consult(id).getType(),true);
+                                                     c.assignation(index,destination);
+                                                     RESULT = new SymbolE(st.consult(id).getType(),false);
+                                                     RESULT.setR(destination);
+                                                 }
+                                                :}
+        |minop id:id           {:
+                                                 var serr = new SymbolError();
+                                                 if(st.consult(id) == null){
+                                                     report_fatal_error(id+" id not declared ",serr);
+                                                     errorSemantic = true;
+                                                 }else
+                                                 if(st.consult(id).gettd() == Description.dFunction){
+                                                     report_fatal_error(" id is function",serr);
+                                                 }else
+                                                 if(!st.consult(id).getType().equals(Description.TypeInt)){
+                                                    report_fatal_error("Types do not match",serr);
+                                                 }else
+                                                 if(st.consult(id).gettd() == Description.dConstant){
+                                                    int index = st.consult(id).getIndexVT();
+                                                    String var = c.nextVar();
+                                                    int destination = c.declare(var,Description.TypeInt,true);
+                                                    //result is: res = -id which is the same as 0-id.
+                                                   c.arithmetic("sub",0,index,destination);
+                                                    RESULT = new SymbolE(Description.TypeInt,true,-st.consult(id).getValue(),destination);
+                                                 }else{
+                                                     int index = st.consult(id).getIndexVT();
+                                                     String var = c.nextVar();
+                                                     int destination = c.declare(var,Description.TypeInt,true);
+                                                     c.arithmetic("sub",-1,index,destination);
+                                                     RESULT = new SymbolE(Description.TypeInt,true);
+                                                     RESULT.setR(destination);
+                                                 }
+
+                                                 :}
+        |number:n                         {:
+                        String var = c.nextVar();
+                        int destination = c.declare(var,Description.TypeInt,true);
+                        c.assignationVal(n,destination);
+                        RESULT = new SymbolE(Description.TypeInt,false,n,destination);
+        :}
+        |minop number:n                   {:
+
+                        String var = c.nextVar();
+                        int destination = c.declare(var,Description.TypeInt,true);
+                        c.assignationVal(-n,destination);
+                        RESULT = new SymbolE(Description.TypeInt,true,-n,destination);
+                        :}
+        |truet                          {:
+
+                                String var = c.nextVar();
+                                int destination = c.declare(var,Description.TypeBool,true);
+                                c.assignationVal(-1,destination);
+                                RESULT = new SymbolE(Description.TypeBool,false,-1,destination);
+                                                                :}
+        |falset                         {:
+
+                                String var = c.nextVar();
+                                int destination = c.declare(var,Description.TypeBool,true);
+                                c.assignationVal(0,destination);
+                                RESULT = new SymbolE(Description.TypeBool,false,0,destination);
+                                                                :}
+        |not id:id                      {:
+                                                  var serr = new SymbolError();
+                                                  if(st.consult(id) == null){
+                                                      report_fatal_error(id+" id not declared ",serr);
+                                                      errorSemantic = true;
+                                                  }else
+                                                  if(st.consult(id).gettd() == Description.dFunction){
+                                                      report_fatal_error("id is function ",serr);
+                                                  }else
+                                                  if(!st.consult(id).getType().equals(Description.TypeBool)){
+                                                     report_fatal_error("Types do not match ",serr);
+                                                  }else
+                                                  if(st.consult(id).gettd() == Description.dConstant){
+                                                    int val = st.consult(id).getValue();
+                                                    //if it is a constant we apply the not operation
+                                                    if(val == 0)
+                                                        val = -1;
+                                                    else
+                                                        val = 0;
+                                                    int index = st.consult(id).getIndexVT();
+                                                    int destination = c.declare(c.nextVar(),Description.TypeBool,true);
+                                                    c.logic("not",index,0,destination);
+                                                    RESULT = new SymbolE(Description.TypeBool,false,val,destination);
+                                                    }
+                                                   else{
+                                                       int index = st.consult(id).getIndexVT();
+                                                       int destination = c.declare(c.nextVar(),Description.TypeBool,true);
+                                                       c.logic("not",index,0,destination);
+                                                       RESULT = new SymbolE(Description.TypeBool,false);
+                                                       RESULT.setR(destination);
+
+                                                   }
+                                                  :}
+        |not truet                      {:
+                                int destination = c.declare(c.nextVar(),Description.TypeBool,true);
+                                c.assignationVal(0,destination);
+                                RESULT = new SymbolE(Description.TypeBool,false,0,destination);
+        :}
+        |not falset                     {:
+                                int destination = c.declare(c.nextVar(),Description.TypeBool,true);
+                                c.assignationVal(-1,destination);
+                                RESULT = new SymbolE(Description.TypeBool,false,-1,destination);
+        :}
+;
+
+CONDITIONAL ::= IF:i {:RESULT = i;:}
+    | WHILE:w {:RESULT = w;:}
+    | FOR:f{:RESULT = f;:}
+;
+
+IF ::= IFP:ifp ELSE:els {:
+                            String l = ifp.getLine();
+                            String lp = els;
+                            if(l.equals("")&&!lp.equals("")){
+                                RESULT = lp;
+                            }else
+                            if(!l.equals("")&&lp.equals("")){
+                                 RESULT = l;
+                             }else
+                            if(l.equals(lp)){
+                                RESULT = l;
+                                //if we get here line and linep are different but both are different of "" so we have in the same block 2 return statement with different types
+                            }else{
+                            var serr = new SymbolError();
+                            report_error("Two return statements with different types",serr);
+                            }
+                            //regardless of whether there is else or not we put the final tag
+                            c.label(ifp.getEnd());
+                            :}
+;
+
+IFP ::= ift openp CONDITION:cond closep openb M0 BLOCK:b closeb
+    {:                                              //if we execute the if, we jump to the end of the if
+                                                    int end = c.nextLabel();
+                                                    c.goTo(end);
+                                                    //pre else label, if condition is false we jump here (execute else)
+                                                    c.label(cond.getEnd());
+                                                    RESULT = new SymbolIFP(end,b);
+    :}
+
+    | ift openp CONDITION:cond closep M0 LINE:l
+    {:
+                                                    st.exitBlock();
+                                                    int end = c.nextLabel();
+                                                    c.goTo(end);
+                                                    c.label(cond.getEnd());
+                                                    RESULT = new SymbolIFP(end,l);
+    :}
+;
+
+ELSE ::= elset openb M0 BLOCK:b closeb {:RESULT = b;:}
+    | elset M0 LINE:l  {:
+                                st.exitBlock();
+                                RESULT = l;
+    :}
+    |{:RESULT ="";:}
+;
+
+WHILE ::= whilet openp CONDITION:cond closep openb M0 BLOCK:b closeb {:
+                    //go to to return to the condition at the end of the code
+                    c.goTo(cond.getPre());
+                    //label to end the while
+                    c.label(cond.getEnd());
+                    RESULT = b;
+:}
+;
+
+FOR ::= FORDEC:fd CODE:code {:
+                c.goTo(fd.getPre());
+                c.label(fd.getEnd());
+                RESULT= code;
+:}
+;
+
+FORDEC ::= fort openp M0 DECL comma CONDITIONFOR:cond comma ASSIGN:pre closep {:
+            c.goTo(cond.getPre());
+            c.label(cond.getStart());
+            RESULT = new SymbolFORDEC(pre,cond.getEnd());
+:}
+;
+
+CODE ::=    openb  BLOCK: b closeb {:
+            RESULT = b;
+        :}
+;
+
+DECL ::=  DECLARATION:dec {:
+                                   var serr = new SymbolError();
+                                   if(dec == Description.dConstant){
+                                        report_fatal_error("Constant in for ",serr);
+                                   }else
+                                   if(dec == -1){
+                                        report_fatal_error("Declaration without assignation ",serr);
+
+                                   }
+
+
+                            :}
+ | {::}
+ ;
+
+M4 ::= {:
+        int pre = c.nextLabel();
+        c.label(pre);
+        RESULT = pre;
+:}
+;
+ASSIGN ::=  M4:pre ASSIGNATION: v   {:
+                                var serr = new SymbolError();
+                                if(v.getType().equals(Description.TypeTuple)){
+                                    report_fatal_error("Tuple in for ",serr);
+                                    errorSemantic = true;
+                                }else
+                                RESULT = pre;
+                            :}
+  |M4:pre {:RESULT = pre;:}
+;
+
+M5 ::= {:
+            int pre = c.nextLabel();
+            c.label(pre);
+            RESULT = pre;
+ :}
+;
+
+CONDITION ::=  M5:pre E:e          {:
+                                                var serr = new SymbolError();
+                                                if(!e.getType().equals(Description.TypeBool)){
+                                                    report_fatal_error("Condition must be boolean ",serr);
+                                                    errorSemantic = true;
+                                                }else{
+                                                    int end = c.nextLabel();
+                                                    c.conditional(e.getR(),end);
+                                                    RESULT = new SymbolCONDITION(pre,end);
+                                                }
+
+
+                                        :}
+;
+
+CONDITIONFOR ::= CONDITION:cond{:
+                //we place the goTo to go to the start of the execution of the for (skipping the assignation)
+                int goTo = c.nextLabel();
+                c.goTo(goTo);
+                RESULT = new SymbolCONDITIONFOR(cond ,goTo);
+:}
+;

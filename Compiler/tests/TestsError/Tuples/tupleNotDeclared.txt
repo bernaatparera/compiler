@@ -1,0 +1,10 @@
+function main{
+    tuple t1{
+        int a = 321;
+    }
+
+    //Tuple t2 is not declared
+    int b = t2.a;
+    println(b);
+
+}

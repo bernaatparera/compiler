@@ -1,0 +1,35 @@
+function main{
+
+    //test that displays the correct
+    //calculations of boolean expressions
+
+    bool b1 = TRUE;
+    bool b2 = FALSE;
+
+    bool b3 = b1 OR b2;
+    println(b3);
+
+    b3 = b1 AND b2;
+    println(b3);
+
+    b3 = b1 NOR b2;
+    println(b3);
+
+    b3 = b1 NAND b2;
+    println(b3);
+
+    b3 = b1 XOR b2;
+    println(b3);
+
+    b3 = NOT b2;
+    println(b3);
+
+    b3 = b1 AND b2 OR b1;
+    println(b3);
+
+    b3 = 3<2;
+    println(b3);
+
+    println(TRUE OR FALSE AND FALSE);
+
+}

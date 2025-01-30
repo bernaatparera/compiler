@@ -1,0 +1,18 @@
+function main{
+
+    function fun1(int a,bool b){
+        print(a);
+        if(b == TRUE){
+            print(1);
+        }
+    }
+    //More parameters needed
+    fun1();
+
+    //Type parameters do not match
+    fun1(TRUE,FALSE);
+
+    //Syntax error
+    fun1(1,TRUE,);
+
+}

@@ -1,0 +1,20 @@
+function main{
+bool b = TRUE;
+bool c = FALSE;
+int C = 3;
+int D = 4;
+
+//we see the priority of the operators so the give priority first to */%, then + -,
+//and finally to the relational operators followed by the logical operators
+//same level operatrs are evaluated from left to right
+//so we read b1 as b OR c AND (2==C) AND (3==D);
+
+bool b1 = b OR c AND 2==C AND 3==D;
+
+//in this case b OR (NOT c) AND ((2==C)!=b) AND ((3==D)==(NOT b))
+bool b2 = b OR NOT c AND 2==C!=b AND 3==D==b;
+
+println(b1);
+println(b2);
+
+}
